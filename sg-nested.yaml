@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Security group  Stack
+
+Parameters:
+  VPCStackName:
+    Type: String
+    Description: Name of the VPC stack to import resources from
+  vpcid:
+    Type: String
+Resources:
+  LoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Load Balancer Security Group
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress: #Add line for testing
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web Server Security Group
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+         - IpProtocol: tcp
+           FromPort: 80
+           ToPort: 80
+           SourceSecurityGroupId: !Ref LoadBalancerSG   # Allow traffic from the load balancer
+         - IpProtocol: tcp
+           FromPort: 22
+           ToPort: 22
+           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+         - IpProtocol: -1
+           CidrIp: 0.0.0.0/0
+  DBServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database Server Security Group
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306   # Replace with the appropriate port for  database server
+          ToPort: 3306   # Replace with the appropriate port for  database server
+          SourceSecurityGroupId: !Ref WebServerSecurityGroup
+Outputs:
+  DBSG:
+    Description: Load Balancer ARN
+    Value: !Ref DBServerSG
+    Export:
+      Name: !Sub '${AWS::StackName}-DBSG'
+  # WebSecurityGroupID:
+  #   Description: Web Security Group ID
+  #   Value: !Ref WebServerSecurityGroup
+  #   Export:
+  #     Name: !Sub '${AWS::StackName}-WebSecurityGroupID'
+  Loadbalancersecurity:
+    Description: Loadbalancer Group 
+    Value: !Ref LoadBalancerSG
+    Export:
+      Name: !Sub '${AWS::StackName}-Loadbalancersecurity'
+  wbSGID:
+    Description: Web Security Group ID
+    Value: !Ref WebServerSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-wbSGID'
+  
+  

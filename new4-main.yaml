@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Main Stack
+
+Parameters:
+  VPCStackName:
+    Type: String
+    Description: Name of the VPC stack to import resources from
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://ssm-paramter-nabeel.s3.amazonaws.com/nested-vpc.yaml'
+  SecuritygroupStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: VPCStack
+    Properties:
+      TemplateURL: 'https://ssm-paramter-nabeel.s3.amazonaws.com/sg-nested.yaml'
+      Parameters:
+        VPCStackName: !Ref VPCStackName
+        vpcid:  !GetAtt VPCStack.Outputs.VPCID
+  DBServerStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: [VPCStack, SecuritygroupStack]
+    Properties:
+      TemplateURL: 'https://ssm-paramter-nabeel.s3.amazonaws.com/db.jq.yaml'
+      Parameters:
+        VPCStackName: !Ref VPCStackName
+        vpcid:  !GetAtt VPCStack.Outputs.VPCID
+        PrivateID:  !GetAtt VPCStack.Outputs.PrivateSubnet1ID
+        dbintance: !GetAtt SecuritygroupStack.Outputs.DBSG #intead of using wbSGID must DBSG
+  WebServerStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: [VPCStack, DBServerStack]   
+    Properties:
+      TemplateURL: 'https://ssm-paramter-nabeel.s3.amazonaws.com/step-scaling-assignment.yaml'
+      Parameters:
+        VPCStackName: !Ref VPCStackName
+        DBPrivateIP: !GetAtt DBServerStack.Outputs.DBInstancePrivateIP #this will use when we get other stack output value here
+        vpcid: !GetAtt VPCStack.Outputs.VPCID
+        subnetID1: !GetAtt VPCStack.Outputs.PublicSubnet1ID
+        subnetID2: !GetAtt VPCStack.Outputs.PublicSubnet2ID
+        LSG: !GetAtt  SecuritygroupStack.Outputs.Loadbalancersecurity
+        webSgroup:  !GetAtt  SecuritygroupStack.Outputs.wbSGID
+        # intanceProfile: !GetAtt DBServerStack.Outputs.DBInstanceProfileOutput #use it when we use output of the dbserver 
+        
+
+        
+Outputs: #use getatt instead of import value in outputsection
+  VPCID:
+    Description: VPC ID
+    Value: !GetAtt VPCStack.Outputs.VPCID
+  LoadBalancerARN:
+    Description: Load Balancer ARN
+    Value: !GetAtt WebServerStack.Outputs.LoadBalancerARN
+  TargetGroupARN:
+    Description: Target Group ARN
+    Value: !GetAtt WebServerStack.Outputs.TargetGroupARN
+  wbSGID:
+    Description: Web Security Group ID
+    Value: SecuritygroupStack.Outputs.wbSGID
+
+
+
